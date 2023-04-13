@@ -80,17 +80,21 @@ fn persistent2file(config: Config) -> Result<()> {
     }
     let map = DATA_MAP.lock().unwrap();
 
-    for (key, value) in map.iter() {
-        let path = Path::new(&config.output_dir).join(key.to_string() + ".txt");
-        let mut f = BufWriter::new(File::create(path)?);
-        for line in value {
-            let datetime = format!("{}", line.time.format("%Y-%m-%d %H:%M:%S"));
+    let ret = map
+        .par_iter()
+        .map(|(key, value)| {
+            let path = Path::new(&config.output_dir).join(key.to_string() + ".txt");
+            let mut f = BufWriter::new(File::create(path)?);
+            for line in value {
+                let datetime = format!("{}", line.time.format("%Y-%m-%d %H:%M:%S"));
 
-            writeln!(f, "{},{},{},{}", key, datetime, line.lat, line.lng)?;
-        }
-    }
+                writeln!(f, "{},{},{},{}", key, datetime, line.lat, line.lng)?;
+            }
+            return Ok(());
+        })
+        .collect();
 
-    return Ok(());
+    return ret;
 }
 
 fn walk_dir(dir: &str) -> Result<()> {
